@@ -5,11 +5,13 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import time
 import os
+import random
 
 # --- AYARLAR ---
 GMAIL_ADRES = "yenikyt1001@gmail.com"
 GMAIL_SIFRE = os.environ.get('GMAIL_SIFRE')
 BLOGGER_MAIL = "yenikyt1001.androidoyun@blogger.com"
+YOUTUBE_LINK = "https://www.youtube.com/@KANAL_ADIN" # Buraya kendi kanal linkini yapıştır!
 
 LOG_DOSYASI = "oyun_hafiza.txt"
 
@@ -25,53 +27,32 @@ def blogda_yayinla(baslik, link, resim_url, etiketler):
     msg['From'] = GMAIL_ADRES
     msg['To'] = BLOGGER_MAIL
     
-    # Başlığın sonuna 5-6 tane otomatik etiket ekliyoruz
-    etiket_str = " ".join([f"#{e}" for e in etiketler])
+    # Otomatik Etiketleme
+    etiket_str = " ".join([f"#{e.replace(' ', '')}" for e in etiketler])
     msg['Subject'] = f"{baslik} {etiket_str} #Android #Oyun #Hileli" 
     
+    # --- YENİ TASARIM VE YOUTUBE BUTONU ---
     html_icerik = f"""
-    <div style="font-family: sans-serif; text-align: center; border: 2px solid #4CAF50; padding: 15px; border-radius: 10px;">
-        <img src="{resim_url}" style="width: 100%; border-radius: 5px; margin-bottom: 15px;">
-        <h2 style="color: #2e7d32;">{baslik}</h2>
-        <p>Android Oyun Club'dan güncel hileli mod sürümü!</p>
-        <br>
-        <a href='{link}' style="background: #4CAF50; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">OYUNU İNDİRMEK İÇİN TIKLAYIN</a>
-        <p style="font-size: 11px; color: #888; margin-top: 20px;">Keyifli oyunlar dileriz.</p>
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; text-align: center; border: 2px solid #4CAF50; padding: 20px; border-radius: 15px; background-color: #fcfdfc;">
+        <img src="{resim_url}" style="width: 100%; max-width: 600px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        
+        <h2 style="color: #2e7d32; margin-bottom: 10px;">🎮 {baslik}</h2>
+        <p style="color: #555; font-size: 16px;">Android Oyun Club'dan güncel hileli mod sürümü yayında!</p>
+        
+        <div style="margin: 25px 0;">
+            <a href='{link}' style="background: #4CAF50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">🚀 OYUNU İNDİRMEK İÇİN TIKLAYIN</a>
+        </div>
+
+        <div style="background: #fff5f5; border: 1px dashed #ff0000; padding: 15px; border-radius: 10px; margin-top: 20px;">
+            <p style="font-weight: bold; color: #333; margin-bottom: 10px;">📺 Bu Oyunun Videoları YouTube Kanalımızda!</p>
+            <a href='{YOUTUBE_LINK}?sub_confirmation=1' style="display: inline-block; padding: 12px 25px; background: #ff0000; color: white; text-decoration: none; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">🔴 KANALA ABONE OL</a>
+        </div>
+
+        <p style="font-size: 12px; color: #888; margin-top: 25px;">Keyifli oyunlar dileriz. Bizi takip etmeye devam edin!</p>
     </div>
     """
+    
     msg.attach(MIMEText(html_icerik, 'html'))
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587); server.starttls(); server.login(GMAIL_ADRES, GMAIL_SIFRE)
-        server.sendmail(GMAIL_ADRES, BLOGGER_MAIL, msg.as_string()); server.quit()
-        return True
-    except: return False
-
-print("--- OYUN BOTU CALISIYOR (ZENGIN ETIKETLI) ---")
-headers = {"User-Agent": "Mozilla/5.0"}
-try:
-    res = requests.get("https://androidoyun.club/", headers=headers)
-    soup = BeautifulSoup(res.content, "html.parser")
-    posts = soup.find_all("div", class_="post-item", limit=5)
-
-    for post in posts:
-        a_tag = post.find("h2").find("a")
-        title = a_tag.text.strip()
-        link = a_tag["href"]
-        img = post.find("img")["src"]
-        
-        # Ek etiketleri siteden çekiyoruz (Kategori gibi)
-        ek_etiketler = []
-        # Oyunun ilk iki kelimesini etiket yapalım
-        ek_etiketler.extend(title.split()[:2]) 
-        # Sitedeki kategoriyi bulmaya çalışalım
-        cat_tag = post.find("span", class_="post-category")
-        if cat_tag:
-            ek_etiketler.append(cat_tag.text.strip())
-
-        if not link_paylasildi_mi(link):
-            if blogda_yayinla(title, link, img, ek_etiketler):
-                print(f"✓ Paylasildi: {title}")
-                linki_kaydet(link)
-                time.sleep(5)
-except Exception as e:
-    print(f"Hata: {e}")
+        server.sendmail(GMAIL_ADRES, BLOGGER_MAIL, msg.as_string());
