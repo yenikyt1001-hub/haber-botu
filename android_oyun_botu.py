@@ -20,13 +20,14 @@ def link_paylasildi_mi(link):
 def linki_kaydet(link):
     with open(LOG_DOSYASI, "a") as f: f.write(link + "\n")
 
-def blogda_yayinla(baslik, link, resim_url):
+def blogda_yayinla(baslik, link, resim_url, etiketler):
     msg = MIMEMultipart()
     msg['From'] = GMAIL_ADRES
     msg['To'] = BLOGGER_MAIL
     
-    # Konu başlığının sonuna etiketleri ekledim kanka (#EtiketAdı şeklinde)
-    msg['Subject'] = f"{baslik} #Android #Oyun #Hileli" 
+    # Başlığın sonuna 5-6 tane otomatik etiket ekliyoruz
+    etiket_str = " ".join([f"#{e}" for e in etiketler])
+    msg['Subject'] = f"{baslik} {etiket_str} #Android #Oyun #Hileli" 
     
     html_icerik = f"""
     <div style="font-family: sans-serif; text-align: center; border: 2px solid #4CAF50; padding: 15px; border-radius: 10px;">
@@ -45,7 +46,7 @@ def blogda_yayinla(baslik, link, resim_url):
         return True
     except: return False
 
-print("--- OYUN BOTU CALISIYOR (ETIKETLI) ---")
+print("--- OYUN BOTU CALISIYOR (ZENGIN ETIKETLI) ---")
 headers = {"User-Agent": "Mozilla/5.0"}
 try:
     res = requests.get("https://androidoyun.club/", headers=headers)
@@ -57,13 +58,20 @@ try:
         title = a_tag.text.strip()
         link = a_tag["href"]
         img = post.find("img")["src"]
+        
+        # Ek etiketleri siteden çekiyoruz (Kategori gibi)
+        ek_etiketler = []
+        # Oyunun ilk iki kelimesini etiket yapalım
+        ek_etiketler.extend(title.split()[:2]) 
+        # Sitedeki kategoriyi bulmaya çalışalım
+        cat_tag = post.find("span", class_="post-category")
+        if cat_tag:
+            ek_etiketler.append(cat_tag.text.strip())
 
         if not link_paylasildi_mi(link):
-            if blogda_yayinla(title, link, img):
+            if blogda_yayinla(title, link, img, ek_etiketler):
                 print(f"✓ Paylasildi: {title}")
                 linki_kaydet(link)
                 time.sleep(5)
-        else:
-            print(f"x Zaten var, atlandi: {title}")
 except Exception as e:
     print(f"Hata: {e}")
