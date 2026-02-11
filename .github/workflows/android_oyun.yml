@@ -1,0 +1,28 @@
+name: Android Oyun Club Botu
+on:
+  schedule:
+    - cron: '45 * * * *' # Her saatin 45. dakikasında çalışır
+  workflow_dispatch: 
+
+jobs:
+  run_bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Python Kur
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Paketleri Yukle
+        run: pip install requests beautifulsoup4
+      - name: Botu Baslat
+        env:
+          GMAIL_SIFRE: ${{ secrets.GMAIL_SIFRE }}
+        run: python android_oyun_botu.py
+      - name: Hafizayi Sakla
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add oyun_hafiza.txt
+          git commit -m "Oyun listesi guncellendi" || exit 0
+          git push
