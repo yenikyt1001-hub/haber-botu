@@ -24,7 +24,9 @@ def blogda_yayinla(baslik, link, resim_url):
     msg = MIMEMultipart()
     msg['From'] = GMAIL_ADRES
     msg['To'] = BLOGGER_MAIL
-    msg['Subject'] = baslik
+    
+    # Konu başlığının sonuna etiketleri ekledim kanka (#EtiketAdı şeklinde)
+    msg['Subject'] = f"{baslik} #Android #Oyun #Hileli" 
     
     html_icerik = f"""
     <div style="font-family: sans-serif; text-align: center; border: 2px solid #4CAF50; padding: 15px; border-radius: 10px;">
@@ -43,7 +45,7 @@ def blogda_yayinla(baslik, link, resim_url):
         return True
     except: return False
 
-print("--- OYUN BOTU CALISIYOR ---")
+print("--- OYUN BOTU CALISIYOR (ETIKETLI) ---")
 headers = {"User-Agent": "Mozilla/5.0"}
 try:
     res = requests.get("https://androidoyun.club/", headers=headers)
@@ -61,5 +63,7 @@ try:
                 print(f"✓ Paylasildi: {title}")
                 linki_kaydet(link)
                 time.sleep(5)
+        else:
+            print(f"x Zaten var, atlandi: {title}")
 except Exception as e:
     print(f"Hata: {e}")
