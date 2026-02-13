@@ -9,68 +9,51 @@ import random
 # --- AYARLAR ---
 GMAIL_ADRES = "yenikyt1001@gmail.com"
 GMAIL_SIFRE = os.environ.get('GMAIL_SIFRE')
-# Buraya haber bloğunun özel mail adresini yaz kanka:
-BLOGGER_MAIL = "buraya_ilgili_mail@blogger.com" 
+BLOGGER_MAIL = "yenikyt1001.sesli@blogger.com" # Burayı kontrol et kral
+YOUTUBE_LINK = "https://www.youtube.com/@KANAL_ADIN"
 
-KAYNAKLAR = [
-    {"ad": "NTV Son Dakika", "url": "https://www.ntv.com.tr/son-dakika.rss"},
-    {"ad": "Hürriyet", "url": "https://www.hurriyet.com.tr/rss/anasayfa"},
-    {"ad": "Milliyet", "url": "https://www.milliyet.com.tr/rss/rss-liste/"}
-]
+KAYNAK_URL = "https://www.ntv.com.tr/son-dakika.rss"
+LOG_DOSYASI = "sesli_hafiza.txt"
 
-LOG_DOSYASI = "haber_hafiza.txt"
+def metni_ai_ozetle(metin):
+    """Metni parçalayıp rastgele birleştirerek özgünleştirir"""
+    cumleler = metin.split('.')
+    if len(cumleler) > 2:
+        # Haberin giriş ve gelişme kısmından rastgele cümleler seçip yer değiştirir
+        ozet = f"{cumleler[0]}. {random.choice(cumleler[1:-1])}."
+    else:
+        ozet = metin
+    return ozet
 
-# --- AKILLI BAŞLIK ÜRETİCİ ---
-def haber_basligi_duzenle(eski_baslik):
-    on_ekler = ["FLAŞ:", "SON DAKİKA:", "Sıcak Gelişme:", "📌", "Önemli Haber:"]
-    son_ekler = ["(Detaylar)", "- İşte Gelişmeler", "Haberin Ayrıntıları Burada!", "Gündem Sarsıldı!"]
-    
-    temiz = eski_baslik.strip()
-    secim = random.randint(1, 4)
-    
-    if secim == 1: return f"{random.choice(on_ekler)} {temiz}"
-    if secim == 2: return f"{temiz} {random.choice(son_ekler)}"
-    if secim == 3: return f"Gündem: {temiz}"
-    return temiz.upper()
+def baslik_ai_yap(baslik):
+    durumlar = ["Hakkında Önemli Detaylar", "Gelişmesi Şaşırttı", "Haberinde Yeni Perde", "Gündeme Bomba Gibi Düştü"]
+    return f"{baslik} {random.choice(durumlar)}"
 
-def link_paylasildi_mi(link):
-    if not os.path.exists(LOG_DOSYASI): return False
-    with open(LOG_DOSYASI, "r") as f: return link in f.read()
-
-def linki_kaydet(link):
-    with open(LOG_DOSYASI, "a") as f: f.write(link + "\n")
-
-def blogda_yayinla(baslik, icerik, kaynak_adi, link=""):
+def blogda_yayinla(baslik, icerik, link=""):
     msg = MIMEMultipart()
     msg['From'] = GMAIL_ADRES
     msg['To'] = BLOGGER_MAIL
     
-    # --- AKILLI ETİKET SİSTEMİ ---
-    etiketler = "#Haber #Gündem"
-    baslik_lower = baslik.lower()
-    if "spor" in baslik_lower: etiketler += " #Spor"
-    if "ekonomi" in baslik_lower or "dolar" in baslik_lower: etiketler += " #Ekonomi"
-    if "siyaset" in baslik_lower: etiketler += " #Siyaset"
-    if "teknoloji" in baslik_lower: etiketler += " #Teknoloji"
+    yeni_baslik = baslik_ai_yap(baslik)
+    msg['Subject'] = f"{yeni_baslik} #Sondakika #Haber"
     
-    # Yeni Akıllı Başlık
-    yeni_baslik = haber_basligi_duzenle(baslik)
-    
-    # Konu satırı: [Yeni Başlık] [Etiketler] #[Kaynak]
-    msg['Subject'] = f"{yeni_baslik} {etiketler} #{kaynak_adi.replace(' ', '')}"
+    yeni_icerik = metni_ai_ozetle(icerik)
     
     html_icerik = f"""
-    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-        <h2 style="color: #d32f2f;">📰 {yeni_baslik}</h2>
-        <div style="padding: 10px; background: #f9f9f9; border-left: 5px solid #d32f2f;">
-            {icerik}
+    <div style="font-family: 'Trebuchet MS', sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 15px; background: #fff;">
+        <h2 style="color: #2c3e50; line-height: 1.4;">🎙️ {yeni_baslik}</h2>
+        <div style="font-size: 17px; color: #444; background: #fdfdfd; padding: 15px; border-left: 4px solid #3498db; margin: 20px 0;">
+            {yeni_icerik}
         </div>
-        <br>
-        <a href='{link}' style="display: inline-block; padding: 10px 20px; background: #d32f2f; color: white; text-decoration: none; border-radius: 5px;">HABERİN DEVAMI İÇİN TIKLAYIN</a>
-        <p style="font-size: 12px; color: #666; margin-top: 20px;">Kaynak: {kaynak_adi}</p>
+        <p style="text-align: center;">
+            <a href='{link}' style="color: #3498db; text-decoration: none; font-weight: bold;">Haberin Kaynağı ve Detayları</a>
+        </p>
+        <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px; text-align: center;">
+            <p style="margin-bottom: 10px; font-weight: bold;">🎧 Bu haberi sesli dinlemek ve videolarımızı izlemek için:</p>
+            <a href='{YOUTUBE_LINK}?sub_confirmation=1' style="display: inline-block; padding: 12px 30px; background: #ff0000; color: white; text-decoration: none; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 10px rgba(255,0,0,0.3);">🔴 YOUTUBE'DA TAKİP ET</a>
+        </div>
     </div>
     """
-    
     msg.attach(MIMEText(html_icerik, 'html'))
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587); server.starttls(); server.login(GMAIL_ADRES, GMAIL_SIFRE)
@@ -78,15 +61,11 @@ def blogda_yayinla(baslik, icerik, kaynak_adi, link=""):
         return True
     except: return False
 
-print("--- HABER BOTU AKILLI VE ETIKETLI BASLATILDI ---")
-for kaynak in KAYNAKLAR:
-    try:
-        feed = feedparser.parse(kaynak['url'])
-        for entry in feed.entries[:5]:
-            if not link_paylasildi_mi(entry.link):
-                if blogda_yayinla(entry.title, entry.get('summary', ''), kaynak['ad'], entry.link):
-                    print(f"✓ Paylasildi: {entry.title[:40]}...")
-                    linki_kaydet(entry.link)
-                    time.sleep(5)
-    except Exception as e:
-        print(f"Hata ({kaynak['ad']}): {e}")
+# --- ÇALIŞTIRMA ---
+feed = feedparser.parse(KAYNAK_URL)
+# BAN KORUMASI: Sadece en yeni 1 haberi al!
+for entry in feed.entries[:1]:
+    if not any(entry.link in open(LOG_DOSYASI).read() for _ in [1] if os.path.exists(LOG_DOSYASI)):
+        if blogda_yayinla(entry.title, entry.get('summary', ''), entry.link):
+            print(f"Başarılı: {entry.title}")
+            with open(LOG_DOSYASI, "a") as f: f.write(entry.link + "\n")
