@@ -17,29 +17,45 @@ def resim_bul(entry):
     if 'links' in entry:
         for link in entry.links:
             if 'image' in link.get('type', ''): return link.href
-    return "https://via.placeholder.com/600x400.png?text=Haber+Gorseli"
+    return "https://via.placeholder.com/600x400.png?text=Guncel+Haber"
 
-def ai_ile_yaz(baslik, icerik):
+def ai_haber_ve_etiket(baslik, icerik):
+    # AI'dan hem haberi yazmasını hem de 3-4 tane etiket bulmasını istiyoruz
+    prompt = f"""Aşağıdaki haberi spiker gibi akıcı yaz ve sonuna uygun 3-4 adet etiket ekle.
+    Format şu olsun: 
+    METİN: [buraya haber metni]
+    ETİKETLER: [buraya aralarında virgül olan etiketler]
+    
+    Haber: {baslik} - {icerik}"""
+    
     try:
-        response = model.generate_content(f"Bu haberi spiker gibi akıcı yaz: {baslik} - {icerik}")
-        return response.text
-    except: return icerik
+        response = model.generate_content(prompt)
+        raw_text = response.text
+        # Metni ve etiketleri birbirinden ayırıyoruz
+        ai_metin = raw_text.split("ETİKETLER:")[0].replace("METİN:", "").strip()
+        etiketler = raw_text.split("ETİKETLER:")[1].strip()
+        return ai_metin, etiketler
+    except:
+        return icerik, "Gündem, Haber, Son Dakika"
 
 def blogda_yayinla(baslik, icerik, link, resim):
+    ai_metin, dinamik_etiketler = ai_haber_ve_etiket(baslik, icerik)
+    
     msg = MIMEMultipart()
     msg['From'], msg['To'] = GMAIL_ADRES, BLOGGER_MAIL
-    # Blogger etiketleri için başlık formatı
-    msg['Subject'] = f"{baslik} , Son Dakika, Haber, Güncel"
+    # Blogger'ın etiketleri görmesi için konu satırı: Başlık , Etiket1, Etiket2
+    msg['Subject'] = f"{baslik} , {dinamik_etiketler}"
     
-    ai_metin = ai_ile_yaz(baslik, icerik)
     html = f"""
-    <div style="font-family:sans-serif; max-width:600px; margin:auto;">
-        <img src="{resim}" style="width:100%; border-radius:10px;">
-        <h2>{baslik}</h2>
-        <p>{ai_metin}</p>
-        <a href="{link}" style="color:#d32f2f; font-weight:bold;">Haberin devamı için tıklayın...</a>
-        <hr>
-        <p style="font-size:12px; color:#777;">Kaynak: NTV | Etiketler: Son Dakika, Haber</p>
+    <div style="font-family:sans-serif; max-width:600px; margin:auto; border:1px solid #eee; padding:15px; border-radius:10px;">
+        <img src="{resim}" style="width:100%; border-radius:8px; margin-bottom:15px;">
+        <h2 style="color:#222;">{baslik}</h2>
+        <p style="font-size:16px; color:#444; line-height:1.6;">{ai_metin}</p>
+        <div style="margin-top:20px; text-align:center;">
+            <a href="{link}" style="background:#d32f2f; color:#fff; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;">HABERİN TAMAMI</a>
+        </div>
+        <hr style="margin-top:30px; border:0; border-top:1px solid #eee;">
+        <p style="font-size:12px; color:#999;"><b>Etiketler:</b> {dinamik_etiketler}</p>
     </div>
     """
     msg.attach(MIMEText(html, 'html'))
