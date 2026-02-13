@@ -19,8 +19,8 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Kütüphaneleri Yükle
-        run: pip install feedparser
+      - name: Kutuphaneleri Yukle
+        run: pip install feedparser google-generativeai
 
       - name: Botu Çalıştır
         env:
