@@ -48,3 +48,5 @@ for url in KAYNAKLAR:
                 paylasilan += 1
                 print(f"Başarılı: {entry.title}")
                 if paylasilan == 1: time.sleep(10)
+https://www.ntv.com.tr/turkiye/son-dakika-deprem-mi-oldu-az-once-deprem-nerede-oldu-istanbul-ankara-izmir-ve-il-il-afad-son-depremler-14-subat-2026-1711861
+https://www.ntv.com.tr/turkiye/cumhurbaskani-erdogan-gencler-ulkemizin-istikbali-1711814
