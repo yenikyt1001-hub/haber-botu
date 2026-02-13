@@ -1,7 +1,7 @@
 name: Genel Haber Botu
 on:
   schedule:
-    - cron: '0 * * * *' # Her saat başı çalışır
+    - cron: '0 */4 * * *' # Her saat başı çalışır
   workflow_dispatch: 
 
 jobs:
