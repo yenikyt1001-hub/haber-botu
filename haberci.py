@@ -6,7 +6,7 @@ from email.mime.multipart import MIMEMultipart
 GMAIL_ADRES = "yenikyt1001@gmail.com"
 GMAIL_SIFRE = os.environ.get('GMAIL_SIFRE')
 BLOGGER_MAIL = "yenikyt1001.sesli@blogger.com"
-GEMINI_KEY = os.environ.get('GEMINI_API_KEY') # GitHub Secrets'tan alacak
+GEMINI_KEY = os.environ.get('AIzaSyCadvyZTig_EGu-gKD9yQbKtL5xfnRlozs') # GitHub Secrets'tan alacak
 LOG_DOSYASI = "haber_hafiza.txt"
 
 # AI Yapılandırması
