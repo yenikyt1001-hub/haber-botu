@@ -1,0 +1,50 @@
+import feedparser
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import time
+import os
+import random
+
+# --- AYARLAR ---
+GMAIL_ADRES = "yenikyt1001@gmail.com"
+GMAIL_SIFRE = os.environ.get('GMAIL_SIFRE')
+BLOGGER_MAIL = "yenikyt1001.sesli@blogger.com" 
+YOUTUBE_LINK = "https://www.youtube.com/@SESLI_HABER_KANALIN"
+
+KAYNAKLAR = ["https://www.ntv.com.tr/son-dakika.rss", "https://rss.haberler.com/rss.asp"]
+LOG_DOSYASI = "haber_hafiza.txt"
+
+# Dosya yoksa oluştur
+if not os.path.exists(LOG_DOSYASI):
+    with open(LOG_DOSYASI, "w") as f: f.write("")
+
+def metni_ai_ozetle(metin):
+    cumleler = metin.split('.')
+    return f"{cumleler[0]}. {random.choice(cumleler[1:-1])}." if len(cumleler) > 2 else metin
+
+def blogda_yayinla(baslik, icerik):
+    msg = MIMEMultipart()
+    msg['From'], msg['To'], msg['Subject'] = GMAIL_ADRES, BLOGGER_MAIL, f"{baslik} #Sondakika"
+    yeni_icerik = metni_ai_ozetle(icerik)
+    html = f"<div style='font-family:sans-serif;'><h2>🎙️ {baslik}</h2><p>{yeni_icerik}</p><br><a href='{YOUTUBE_LINK}'>🔴 YOUTUBE'DA DINLE</a></div>"
+    msg.attach(MIMEText(html, 'html'))
+    try:
+        s = smtplib.SMTP('smtp.gmail.com', 587); s.starttls(); s.login(GMAIL_ADRES, GMAIL_SIFRE)
+        s.sendmail(GMAIL_ADRES, BLOGGER_MAIL, msg.as_string()); s.quit()
+        return True
+    except: return False
+
+with open(LOG_DOSYASI, "r") as f: hafiza = f.read()
+paylasilan = 0
+for url in KAYNAKLAR:
+    if paylasilan >= 2: break
+    feed = feedparser.parse(url)
+    for entry in feed.entries[:5]:
+        if paylasilan >= 2: break
+        if entry.link not in hafiza:
+            if blogda_yayinla(entry.title, entry.get('summary', '')):
+                with open(LOG_DOSYASI, "a") as f: f.write(entry.link + "\n")
+                paylasilan += 1
+                print(f"Başarılı: {entry.title}")
+                if paylasilan == 1: time.sleep(10)
