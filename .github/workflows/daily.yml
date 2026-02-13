@@ -1,17 +1,15 @@
-name: Genel Haber Botu
+name: Haber ve Oyun Botu
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Her saat başı çalışır
-  workflow_dispatch:      # Manuel çalıştırma butonu
+    - cron: '0 * * * *' # Her saat başı çalışır
+  workflow_dispatch:      # Manuel çalıştırma butonu (test için)
 
 jobs:
-  build:
+  haber_gonder:
     runs-on: ubuntu-latest
-    # Dosya yazma yetkisini burada garantiye alıyoruz
     permissions:
-      contents: write
-
+      contents: write     # Yazma yetkisi burada (Hata almamak için şart)
     steps:
       - name: Depoyu Klonla
         uses: actions/checkout@v3
@@ -33,13 +31,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          # Dosya yoksa oluştur (Hata almanı engeller)
           touch haber_hafiza.txt
-          
           git add haber_hafiza.txt
-          
-          # Eğer değişiklik yoksa hata vermeden geç
-          git commit -m "Haber hafızası güncellendi [skip ci]" || echo "Değişiklik yok."
-          
+          git commit -m "Hafiza guncellendi [skip ci]" || echo "Degisiklik yok"
           git push
