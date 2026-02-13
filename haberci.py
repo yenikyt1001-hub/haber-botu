@@ -13,26 +13,23 @@ def blogda_yayinla(baslik, icerik, kaynak_link):
     msg['From'] = GMAIL_ADRES
     msg['To'] = BLOGGER_MAIL
     
-    # Yeni Etiket Yöntemi: Konu satırına eklemiyoruz, mailin en başına yazacağız.
-    msg['Subject'] = baslik
-    
-    # 'L:' komutu Blogger'a "bunları etiket yap" der.
-    etiketler = "L: Son Dakika, Haber, Gündem, Güncel"
+    # 💡 KRİTİK DEĞİŞİKLİK: Blogger etiketleri konu satırında virgülle ayrılmış 
+    # ve sonuna boşluk bırakılmış şekilde bekler.
+    msg['Subject'] = f"{baslik} , Son Dakika, Haber, Güncel"
     
     html = f"""
-    <div style="font-family:sans-serif; line-height:1.6;">
-        <div style="display:none;">{etiketler}</div>
-        <p><strong>{etiketler}</strong></p>
-        <hr>
-        <h2 style="color:#222;">🎙️ {baslik}</h2>
-        <p>{icerik}</p>
+    <div style="font-family:sans-serif; line-height:1.6; color:#333;">
+        <h2 style="color:#222; border-bottom:2px solid #eee; padding-bottom:10px;">🎙️ {baslik}</h2>
+        <p style="font-size:16px;">{icerik}</p>
         <br>
-        <div style="background:#f0f0f0; padding:15px; border-radius:5px; border-left:6px solid #ff0000;">
-            <strong>📌 Haberin Kaynağı:</strong> <br>
-            <a href="{kaynak_link}" style="color:#d32f2f; font-weight:bold;">{kaynak_link}</a>
+        <div style="background:#f0f0f0; padding:15px; border-radius:5px; border-left:6px solid #d32f2f;">
+            <strong style="color:#d32f2f;">📌 Haberin Kaynağı:</strong><br>
+            <a href="{kaynak_link}" style="text-decoration:none; color:#1a73e8; word-break:break-all;">{kaynak_link}</a>
         </div>
         <br>
-        <p style="color:#888; font-size:12px;">Bu haber otomatik olarak Sesli Haber sistemi tarafından paylaşılmıştır.</p>
+        <p style="color:#999; font-size:12px; border-top:1px solid #eee; pt:10px;">
+            Sesli Haber Otomasyonu tarafından paylaşıldı.
+        </p>
     </div>
     """
     msg.attach(MIMEText(html, 'html'))
