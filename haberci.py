@@ -13,20 +13,26 @@ def blogda_yayinla(baslik, icerik, kaynak_link):
     msg['From'] = GMAIL_ADRES
     msg['To'] = BLOGGER_MAIL
     
-    # Blogger'da etiketlerin çalışması için virgülle ayırıp konu sonuna ekliyoruz
-    # Format: Başlık [Etiket1, Etiket2]
-    msg['Subject'] = f"{baslik} [Son Dakika, Haber, Gündem]"
+    # Yeni Etiket Yöntemi: Konu satırına eklemiyoruz, mailin en başına yazacağız.
+    msg['Subject'] = baslik
+    
+    # 'L:' komutu Blogger'a "bunları etiket yap" der.
+    etiketler = "L: Son Dakika, Haber, Gündem, Güncel"
     
     html = f"""
     <div style="font-family:sans-serif; line-height:1.6;">
+        <div style="display:none;">{etiketler}</div>
+        <p><strong>{etiketler}</strong></p>
+        <hr>
         <h2 style="color:#222;">🎙️ {baslik}</h2>
         <p>{icerik}</p>
         <br>
-        <div style="background:#f9f9f9; padding:10px; border-left:4px solid #d32f2f;">
-            <strong>Kaynak:</strong> <a href="{kaynak_link}">{kaynak_link}</a>
+        <div style="background:#f0f0f0; padding:15px; border-radius:5px; border-left:6px solid #ff0000;">
+            <strong>📌 Haberin Kaynağı:</strong> <br>
+            <a href="{kaynak_link}" style="color:#d32f2f; font-weight:bold;">{kaynak_link}</a>
         </div>
         <br>
-        <p style="color:#777;"><em>Sesli Haber Kanalı aracılığıyla paylaşıldı.</em></p>
+        <p style="color:#888; font-size:12px;">Bu haber otomatik olarak Sesli Haber sistemi tarafından paylaşılmıştır.</p>
     </div>
     """
     msg.attach(MIMEText(html, 'html'))
@@ -45,7 +51,6 @@ with open(LOG_DOSYASI, "r") as f: hafiza = f.read()
 for entry in feed.entries[:5]:
     if paylasilan >= 2: break
     if entry.link not in hafiza:
-        # Kaynak linkini de gönderiyoruz
         if blogda_yayinla(entry.title, entry.get('summary', ''), entry.link):
             with open(LOG_DOSYASI, "a") as f: f.write(entry.link + "\n")
             paylasilan += 1
