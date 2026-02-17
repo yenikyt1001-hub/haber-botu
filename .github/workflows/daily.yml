@@ -2,14 +2,14 @@ name: Haber ve Oyun Botu
 
 on:
   schedule:
-    - cron: '0 * * * *' # Her saat başı çalışır
-  workflow_dispatch:      # Manuel çalıştırma butonu (test için)
+    - cron: '0 */2 * * *' # Her 2 saatte bir otomatik çalışır
+  workflow_dispatch:      # İstediğinde "Run Workflow" butonuyla manuel çalıştırmanı sağlar
 
 jobs:
   haber_gonder:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # Yazma yetkisi burada (Hata almamak için şart)
+      contents: write     # Hafızayı (txt dosyasını) güncelleyebilmesi için şart
     steps:
       - name: Depoyu Klonla
         uses: actions/checkout@v3
@@ -25,13 +25,13 @@ jobs:
       - name: Botu Çalıştır
         env:
           GMAIL_SIFRE: ${{ secrets.GMAIL_SIFRE }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python haberci.py
 
       - name: Hafızayı Kaydet ve Pushla
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          touch haber_hafiza.txt
           git add haber_hafiza.txt
           git commit -m "Hafiza guncellendi [skip ci]" || echo "Degisiklik yok"
           git push
