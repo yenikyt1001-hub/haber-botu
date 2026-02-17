@@ -1,33 +1,27 @@
 name: Haber ve Oyun Botu
-
 on:
   schedule:
-    - cron: '0 */2 * * *' # Her 2 saatte bir otomatik çalışır
-  workflow_dispatch:      # İstediğinde "Run Workflow" butonuyla manuel çalıştırmanı sağlar
-
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
 jobs:
   haber_gonder:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # Hafızayı (txt dosyasını) güncelleyebilmesi için şart
+      contents: write
     steps:
       - name: Depoyu Klonla
         uses: actions/checkout@v3
-
       - name: Python Kur
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
       - name: Kutuphaneleri Yukle
         run: pip install feedparser google-generativeai
-
       - name: Botu Çalıştır
         env:
-          GMAIL_SIFRE: ${{ secrets.jegj nsxl qgdn xdnl }}
-          GEMINI_API_KEY: ${{ secrets.AIzaSyCadvyZTig_EGu-gKD9yQbKtL5xfnRlozs }}
+          GMAIL_SIFRE: ${{ secrets.GMAIL_SIFRE }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python haberci.py
-
       - name: Hafızayı Kaydet ve Pushla
         run: |
           git config --local user.email "action@github.com"
