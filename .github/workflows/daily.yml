@@ -24,8 +24,8 @@ jobs:
 
       - name: Botu Çalıştır
         env:
-          GMAIL_SIFRE: ${{ secrets.GMAIL_SIFRE }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GMAIL_SIFRE: ${{ secrets.jegj nsxl qgdn xdnl }}
+          GEMINI_API_KEY: ${{ secrets.AIzaSyCadvyZTig_EGu-gKD9yQbKtL5xfnRlozs }}
         run: python haberci.py
 
       - name: Hafızayı Kaydet ve Pushla
