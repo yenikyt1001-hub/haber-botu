@@ -1,0 +1,30 @@
+name: Haber Botu Pro
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+jobs:
+  haber_yap:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Python Kur
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Paketleri Yukle
+        run: pip install feedparser google-generativeai --upgrade
+      - name: Botu Calistir
+        env:
+          GMAIL_SIFRE: ${{ secrets.GMAIL_SIFRE }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python haberci.py
+      - name: Hafizayi Pushla
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add haber_hafiza.txt
+          git commit -m "Hafiza guncellendi [skip ci]" || echo "Degisiklik yok"
+          git push
