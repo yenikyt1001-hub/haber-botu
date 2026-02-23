@@ -10,50 +10,36 @@ BLOGGER_MAIL = "yenikyt1001.seslisonhaber@blogger.com"
 GEMINI_KEY = os.environ.get('GEMINI_API_KEY')
 LOG_DOSYASI = "haber_hafiza.txt"
 
-# RSS KAYNAKLARI
+# SADECE İSTEDİĞİN 2 KAYNAK
 RSS_KAYNAKLARI = [
-    "https://www.trthaber.com/manset_articles.rss",
-    "https://www.ntv.com.tr/son-dakika.rss",
-    "https://www.ensonhaber.com/rss/ensonhaber.xml"
+    "https://www.rudaw.net/turkish/rss",
+    "https://www.sondakika.com/rss/"
 ]
 
-# GEMINI 1.5 FLASH BAĞLANTISI
 genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-def ai_ile_isle(baslik, icerik):
-    prompt = f"Haber: {baslik} - {icerik}\n\nBu haberi profesyonel bir spiker diliyle 3 paragraf olarak özgünleştir. En sona 'ETİKETLER: ' yazıp 3 tane etiket ekle."
-    try:
-        response = model.generate_content(prompt)
-        return response.text
-    except:
-        return f"{baslik}\n\n{icerik}\n\nETİKETLER: Haber, Gündem, SonDakika"
-
 def blogda_yayinla(baslik, icerik, link, resim):
-    ozgun_metin = ai_ile_isle(baslik, icerik)
-    msg = MIMEMultipart()
-    msg['From'] = GMAIL_ADRES
-    msg['To'] = BLOGGER_MAIL
-    msg['Subject'] = f"{baslik}"
-    
-    html = f"""<div style="font-family:sans-serif; max-width:600px; margin:auto; padding:15px; border:1px solid #eee; border-radius:12px;">
-        <img src="{resim}" style="width:100%; border-radius:10px;">
-        <h2>{baslik}</h2>
-        <div style="line-height:1.7;">{ozgun_metin}</div>
-        <div style="text-align:center; margin-top:20px;">
-            <a href="{link}" style="background:#e31e24; color:#fff; padding:10px 20px; text-decoration:none; border-radius:6px;">HABER KAYNAĞI</a>
-        </div>
-    </div>"""
-    
-    msg.attach(MIMEText(html, 'html'))
     try:
+        prompt = f"Haber: {baslik} - {icerik}\n\nBu haberi profesyonel bir spiker diliyle 3 paragraf özgünleştir. Sona 3 anahtar kelime etiket ekle."
+        response = model.generate_content(prompt)
+        ai_metni = response.text
+        
+        msg = MIMEMultipart()
+        msg['From'] = GMAIL_ADRES
+        msg['To'] = BLOGGER_MAIL
+        msg['Subject'] = baslik
+        
+        body = f'<img src="{resim}" style="width:100%; border-radius:10px;"><br><h2>{baslik}</h2><p>{ai_metni}</p><br><a href="{link}">Haberin Kaynağı</a>'
+        msg.attach(MIMEText(body, 'html'))
+        
         with smtplib.SMTP('smtp.gmail.com', 587) as s:
             s.starttls()
             s.login(GMAIL_ADRES, GMAIL_SIFRE)
             s.sendmail(GMAIL_ADRES, BLOGGER_MAIL, msg.as_string())
         return True
     except Exception as e:
-        print(f"Mail Hatası: {e}")
+        print(f"Hata: {e}")
         return False
 
 # --- ANA DÖNGÜ ---
@@ -61,15 +47,19 @@ if not os.path.exists(LOG_DOSYASI): open(LOG_DOSYASI, "w").close()
 with open(LOG_DOSYASI, "r", encoding="utf-8") as f: hafiza = f.read()
 
 for kaynak in RSS_KAYNAKLARI:
-    print(f"Kontrol ediliyor: {kaynak}")
+    print(f"Tarama yapılıyor: {kaynak}")
     feed = feedparser.parse(kaynak)
     for entry in feed.entries[:3]:
         if entry.link not in hafiza:
+            # Resim çekme mantığı
             resim = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600"
             if 'media_content' in entry: resim = entry.media_content[0]['url']
+            elif 'links' in entry:
+                for l in entry.links:
+                    if 'image' in l.get('type', ''): resim = l.href
             
             if blogda_yayinla(entry.title, entry.get('summary', ''), entry.link, resim):
                 with open(LOG_DOSYASI, "a", encoding="utf-8") as f: f.write(f"{entry.link}\n")
-                print(f"Paylaşıldı: {entry.title}")
-                time.sleep(30)
+                print(f"YAYINLANDI: {entry.title}")
+                time.sleep(15)
                 break
