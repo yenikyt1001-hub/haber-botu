@@ -47,11 +47,10 @@ if not os.path.exists(LOG_DOSYASI): open(LOG_DOSYASI, "w").close()
 with open(LOG_DOSYASI, "r", encoding="utf-8") as f: hafiza = f.read()
 
 for kaynak in RSS_KAYNAKLARI:
-    print(f"Tarama yapılıyor: {kaynak}")
+    print(f"Tarama: {kaynak}")
     feed = feedparser.parse(kaynak)
     for entry in feed.entries[:3]:
         if entry.link not in hafiza:
-            # Resim çekme mantığı
             resim = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600"
             if 'media_content' in entry: resim = entry.media_content[0]['url']
             elif 'links' in entry:
