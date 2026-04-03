@@ -1,5 +1,5 @@
 import feedparser
-from google import genai # Bu satırı böyle dene
+import google.genai as genai
 from google.genai import types
 import smtplib
 import os
@@ -9,8 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 
 # --- AYARLAR ---
-GEMINI_API_KEY = "AIzaSyDAU6jVnIRBxfqrDkF9oX22xD2Ebq6Rf4U"
-# ... kodun geri kalanı aynı kalsın
+GEMINI_API_KEY = "AIzaSyDAU6jVnIRBxfqrDkF9oX22xD2Ebq6Rf4U" # Kendi keyini yazmayı unutma kral!
 GMAIL_ADRESIN = "yenikyt1001@gmail.com"
 GMAIL_UYGULAMA_SIFRESI = "ttbe ahll meze euch"
 BLOGGER_MAIL = "yenikyt1001.seslisonhaber@blogger.com"
@@ -21,58 +20,10 @@ RSS_URLS = [
     "https://www.sondakika.com/rss/son-dakika/"
 ]
 
-# Istemciyi baslat
-client = genai.Client(api_key=GEMINI_API_KEY)
-
-def haberi_ozgunlestir(baslik, icerik):
-    try:
-        prompt = f"Haber: {baslik}\n{icerik}\n\nBu haberi profesyonelce yeniden yaz, en sona 5 etiket ekle."
-        response = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
-        
-        img_prompt_req = f"Create a cinematic news image prompt for: {baslik}"
-        img_res = client.models.generate_content(model="gemini-1.5-flash", contents=img_prompt_req)
-        
-        return response.text, img_res.text.strip()
-    except Exception as e:
-        print(f"Metin hatasi: {e}")
-        return f"{baslik}\n\n{icerik}", "News background"
-
-def resim_olustur(prompt):
-    try:
-        print("Resim olusturuluyor...")
-        response = client.models.generate_image(
-            model="imagen-3",
-            prompt=prompt,
-            config=types.GenerateImageConfig(
-                aspect_ratio="16:9",
-                safety_filter_level="BLOCK_ONLY_HIGH"
-            )
-        )
-        return response.generated_images[0].image_bytes
-    except Exception as e:
-        print(f"Resim hatasi: {e}")
-        return None
-
-def mail_gonder(baslik, icerik, resim_bytes):
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = GMAIL_ADRESIN
-        msg['To'] = BLOGGER_MAIL
-        msg['Subject'] = baslik
-        msg.attach(MIMEText(icerik, 'plain'))
-        
-        if resim_bytes:
-            image = MIMEImage(resim_bytes, name="haber.jpg")
-            msg.attach(image)
-            
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(GMAIL_ADRESIN, GMAIL_UYGULAMA_SIFRESI)
-            server.sendmail(GMAIL_ADRESIN, BLOGGER_MAIL, msg.as_string())
-        print("E-posta gönderildi.")
-    except Exception as e:
-        print(f"Mail hatasi: {e}")
-
 def baslat():
+    # Istemciyi fonksiyon icinde baslatmak daha güvenlidir
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    
     log_dosyasi = "haber_hafiza.txt"
     if not os.path.exists(log_dosyasi):
         with open(log_dosyasi, "w") as f: f.write("")
@@ -83,12 +34,44 @@ def baslat():
         besleme = feedparser.parse(url)
         for haber in besleme.entries[:1]:
             if haber.link not in yayinlananlar:
-                print(f"Isleniyor: {haber.title}")
-                metin, img_p = haberi_ozgunlestir(haber.title, haber.summary)
-                r_bytes = resim_olustur(img_p)
-                mail_gonder(haber.title, metin, r_bytes)
+                print(f"Islemde: {haber.title}")
+                
+                # Özgünleştirme ve Resim Promptu
+                p = f"Haber: {haber.title}\n{haber.summary}\n\nBu haberi profesyonelce yeniden yaz, en sona 5 etiket ekle."
+                res_metin = client.models.generate_content(model="gemini-1.5-flash", contents=p)
+                
+                img_p = f"Professional cinematic news photo for: {haber.title}"
+                
+                # Resim Oluşturma
+                resim_data = None
+                try:
+                    res_img = client.models.generate_image(
+                        model="imagen-3",
+                        prompt=img_p,
+                        config=types.GenerateImageConfig(aspect_ratio="16:9")
+                    )
+                    resim_data = res_img.generated_images[0].image_bytes
+                except:
+                    print("Resim olusturulamadi, metin gonderiliyor.")
+
+                # Mail Gönderimi
+                msg = MIMEMultipart()
+                msg['From'] = GMAIL_ADRESIN
+                msg['To'] = BLOGGER_MAIL
+                msg['Subject'] = haber.title
+                msg.attach(MIMEText(res_metin.text, 'plain'))
+                
+                if resim_data:
+                    image = MIMEImage(resim_data, name="haber.jpg")
+                    msg.attach(image)
+                
+                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                    server.login(GMAIL_ADRESIN, GMAIL_UYGULAMA_SIFRESI)
+                    server.sendmail(GMAIL_ADRESIN, BLOGGER_MAIL, msg.as_string())
+                
                 with open(log_dosyasi, "a") as f:
                     f.write(haber.link + "\n")
+                print("Blogger'a gonderildi!")
                 time.sleep(5)
 
 if __name__ == "__main__":
