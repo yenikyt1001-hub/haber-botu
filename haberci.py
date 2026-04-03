@@ -1,64 +1,88 @@
-import feedparser, smtplib, time, os
-import google.generativeai as genai
+import feedparser
+from google import genai
+from google.genai import types
+import smtplib
+import os
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.image import MIMEImage
 
 # --- AYARLAR ---
-GMAIL_ADRES = "yenikyt1001@gmail.com"
-GMAIL_SIFRE = os.environ.get('GMAIL_SIFRE')
+GEMINI_API_KEY = "AIzaSyDAU6jVnIRBxfqrDkF9oX22xD2Ebq6Rf4U"
+GMAIL_ADRESIN = "yenikyt1001@gmail.com"
+GMAIL_UYGULAMA_SIFRESI = "ttbe ahll meze euch"
 BLOGGER_MAIL = "yenikyt1001.seslisonhaber@blogger.com"
-GEMINI_KEY = os.environ.get('GEMINI_API_KEY')
-LOG_DOSYASI = "haber_hafiza.txt"
 
-# SADECE İSTEDİĞİN 2 KAYNAK
-RSS_KAYNAKLARI = [
-    "https://www.rudaw.net/turkish/rss",
-    "https://www.sondakika.com/rss/"
+RSS_URLS = [
+    "https://www.ntv.com.tr/son-dakika.rss",
+    "https://www.trthaber.com/sondakika.rss",
+    "https://www.sondakika.com/rss/son-dakika/"
 ]
 
-genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-def blogda_yayinla(baslik, icerik, link, resim):
+def haberi_ozgunlestir(baslik, icerik):
     try:
-        prompt = f"Haber: {baslik} - {icerik}\n\nBu haberi profesyonel bir spiker diliyle 3 paragraf özgünleştir. Sona 3 anahtar kelime etiket ekle."
-        response = model.generate_content(prompt)
-        ai_metni = response.text
+        prompt = f"Haber: {baslik}\n{icerik}\n\nBu haberi profesyonelce yeniden yaz, en sona 5 etiket ekle."
+        response = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
         
-        msg = MIMEMultipart()
-        msg['From'] = GMAIL_ADRES
-        msg['To'] = BLOGGER_MAIL
-        msg['Subject'] = baslik
+        img_prompt_req = f"Create a cinematic news image prompt for: {baslik}"
+        img_res = client.models.generate_content(model="gemini-1.5-flash", contents=img_prompt_req)
         
-        body = f'<img src="{resim}" style="width:100%; border-radius:10px;"><br><h2>{baslik}</h2><p>{ai_metni}</p><br><a href="{link}">Haberin Kaynağı</a>'
-        msg.attach(MIMEText(body, 'html'))
-        
-        with smtplib.SMTP('smtp.gmail.com', 587) as s:
-            s.starttls()
-            s.login(GMAIL_ADRES, GMAIL_SIFRE)
-            s.sendmail(GMAIL_ADRES, BLOGGER_MAIL, msg.as_string())
-        return True
+        return response.text, img_res.text.strip()
+    except:
+        return f"{baslik}\n\n{icerik}", "News background"
+
+def resim_olustur(prompt):
+    try:
+        print("Resim olusturuluyor...")
+        response = client.models.generate_image(
+            model="imagen-3",
+            prompt=prompt,
+            config=types.GenerateImageConfig(
+                aspect_ratio="16:9",
+                safety_filter_level="BLOCK_ONLY_HIGH"
+            )
+        )
+        return response.generated_images[0].image_bytes
     except Exception as e:
-        print(f"Hata: {e}")
-        return False
+        print(f"Resim hatasi: {e}")
+        return None
 
-# --- ANA DÖNGÜ ---
-if not os.path.exists(LOG_DOSYASI): open(LOG_DOSYASI, "w").close()
-with open(LOG_DOSYASI, "r", encoding="utf-8") as f: hafiza = f.read()
+def mail_gonder(baslik, icerik, resim_bytes):
+    msg = MIMEMultipart()
+    msg['From'] = GMAIL_ADRESIN
+    msg['To'] = BLOGGER_MAIL
+    msg['Subject'] = baslik
+    msg.attach(MIMEText(icerik, 'plain'))
+    
+    if resim_bytes:
+        image = MIMEImage(resim_bytes, name="haber.jpg")
+        msg.attach(image)
+        
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login(GMAIL_ADRESIN, GMAIL_UYGULAMA_SIFRESI)
+        server.sendmail(GMAIL_ADRESIN, BLOGGER_MAIL, msg.as_string())
 
-for kaynak in RSS_KAYNAKLARI:
-    print(f"Tarama: {kaynak}")
-    feed = feedparser.parse(kaynak)
-    for entry in feed.entries[:3]:
-        if entry.link not in hafiza:
-            resim = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600"
-            if 'media_content' in entry: resim = entry.media_content[0]['url']
-            elif 'links' in entry:
-                for l in entry.links:
-                    if 'image' in l.get('type', ''): resim = l.href
-            
-            if blogda_yayinla(entry.title, entry.get('summary', ''), entry.link, resim):
-                with open(LOG_DOSYASI, "a", encoding="utf-8") as f: f.write(f"{entry.link}\n")
-                print(f"YAYINLANDI: {entry.title}")
-                time.sleep(15)
-                break
+def baslat():
+    log_dosyasi = "haber_hafiza.txt"
+    if not os.path.exists(log_dosyasi):
+        with open(log_dosyasi, "w") as f: f.write("")
+    with open(log_dosyasi, "r") as f:
+        yayinlananlar = f.read().splitlines()
+
+    for url in RSS_URLS:
+        besleme = feedparser.parse(url)
+        for haber in besleme.entries[:1]:
+            if haber.link not in yayinlananlar:
+                print(f"Isleniyor: {haber.title}")
+                metin, img_p = haberi_ozgunlestir(haber.title, haber.summary)
+                r_bytes = resim_olustur(img_p)
+                mail_gonder(haber.title, metin, r_bytes)
+                with open(log_dosyasi, "a") as f:
+                    f.write(haber.link + "\n")
+                time.sleep(5)
+
+if __name__ == "__main__":
+    baslat()
