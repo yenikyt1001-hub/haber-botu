@@ -1,5 +1,5 @@
 import feedparser
-import google.genai as genai # Bu satiri degistirdim
+from google import genai # Bu satırı böyle dene
 from google.genai import types
 import smtplib
 import os
@@ -9,7 +9,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 
 # --- AYARLAR ---
-GEMINI_API_KEY = "BURAYA_API_KEY_GELECEK" 
+GEMINI_API_KEY = "AIzaSyDAU6jVnIRBxfqrDkF9oX22xD2Ebq6Rf4U"
+# ... kodun geri kalanı aynı kalsın
 GMAIL_ADRESIN = "yenikyt1001@gmail.com"
 GMAIL_UYGULAMA_SIFRESI = "ttbe ahll meze euch"
 BLOGGER_MAIL = "yenikyt1001.seslisonhaber@blogger.com"
