@@ -1,5 +1,5 @@
 import feedparser
-from google import genai
+import google.genai as genai # Bu satiri degistirdim
 from google.genai import types
 import smtplib
 import os
@@ -9,7 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 
 # --- AYARLAR ---
-GEMINI_API_KEY = "AIzaSyDAU6jVnIRBxfqrDkF9oX22xD2Ebq6Rf4U"
+GEMINI_API_KEY = "BURAYA_API_KEY_GELECEK" 
 GMAIL_ADRESIN = "yenikyt1001@gmail.com"
 GMAIL_UYGULAMA_SIFRESI = "ttbe ahll meze euch"
 BLOGGER_MAIL = "yenikyt1001.seslisonhaber@blogger.com"
@@ -20,6 +20,7 @@ RSS_URLS = [
     "https://www.sondakika.com/rss/son-dakika/"
 ]
 
+# Istemciyi baslat
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 def haberi_ozgunlestir(baslik, icerik):
@@ -31,7 +32,8 @@ def haberi_ozgunlestir(baslik, icerik):
         img_res = client.models.generate_content(model="gemini-1.5-flash", contents=img_prompt_req)
         
         return response.text, img_res.text.strip()
-    except:
+    except Exception as e:
+        print(f"Metin hatasi: {e}")
         return f"{baslik}\n\n{icerik}", "News background"
 
 def resim_olustur(prompt):
@@ -51,19 +53,23 @@ def resim_olustur(prompt):
         return None
 
 def mail_gonder(baslik, icerik, resim_bytes):
-    msg = MIMEMultipart()
-    msg['From'] = GMAIL_ADRESIN
-    msg['To'] = BLOGGER_MAIL
-    msg['Subject'] = baslik
-    msg.attach(MIMEText(icerik, 'plain'))
-    
-    if resim_bytes:
-        image = MIMEImage(resim_bytes, name="haber.jpg")
-        msg.attach(image)
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = GMAIL_ADRESIN
+        msg['To'] = BLOGGER_MAIL
+        msg['Subject'] = baslik
+        msg.attach(MIMEText(icerik, 'plain'))
         
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(GMAIL_ADRESIN, GMAIL_UYGULAMA_SIFRESI)
-        server.sendmail(GMAIL_ADRESIN, BLOGGER_MAIL, msg.as_string())
+        if resim_bytes:
+            image = MIMEImage(resim_bytes, name="haber.jpg")
+            msg.attach(image)
+            
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_ADRESIN, GMAIL_UYGULAMA_SIFRESI)
+            server.sendmail(GMAIL_ADRESIN, BLOGGER_MAIL, msg.as_string())
+        print("E-posta gönderildi.")
+    except Exception as e:
+        print(f"Mail hatasi: {e}")
 
 def baslat():
     log_dosyasi = "haber_hafiza.txt"
