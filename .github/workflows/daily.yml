@@ -2,18 +2,22 @@ name: Haber Botu Otomatik Calistir
 
 on:
   schedule:
-    - cron: '0 * * * *' # Her saat bası calısır
-  workflow_dispatch: # El ile baslatmak icin
+    - cron: '0 * * * *' # Her saat başı otomatik çalışır
+  workflow_dispatch: # İstediğin zaman manuel başlatman için buton açar
 
 jobs:
-  build:
+  haber_paylas:
     runs-on: ubuntu-latest
+    # Dosya güncelleyip geri yükleyebilmesi için yazma izni veriyoruz
+    permissions:
+      contents: write
+
     steps:
-      - name: Checkout kod
-        uses: actions/checkout@v4
+      - name: Kodlari Cek
+        uses: actions/checkout@v4 # Güncel sürüm (Node.js hatasını çözer)
 
       - name: Python Kur
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5 # Güncel sürüm
         with:
           python-version: '3.10'
 
@@ -28,11 +32,12 @@ jobs:
           GMAIL_UYGULAMA_SIFRESI: ${{ secrets.GMAIL_UYGULAMA_SIFRESI }}
           BLOGGER_MAIL: ${{ secrets.BLOGGER_MAIL }}
         run: python haber_botu.py
-        
-        - name: Hafizayi Guncelle
+
+      - name: Hafizayi Guncelle ve Push Et
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add haber_hafiza.txt
-          git commit -m "Hafiza guncellendi" || exit 0
+          # Eğer yeni haber yoksa ve dosya değişmediyse hata vermemesi için || true ekledik
+          git commit -m "Haber hafizası güncellendi [skip ci]" || true
           git push
