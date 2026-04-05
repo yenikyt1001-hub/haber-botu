@@ -2,8 +2,8 @@ name: Haber Botu Otomatik Calistir
 
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    - cron: '0 * * * *' # Her saat başı çalışır
+  workflow_dispatch: # El ile başlatma butonu
 
 jobs:
   build:
@@ -29,12 +29,13 @@ jobs:
           GMAIL_ADRESIN: ${{ secrets.GMAIL_ADRESIN }}
           GMAIL_UYGULAMA_SIFRESI: ${{ secrets.GMAIL_UYGULAMA_SIFRESI }}
           BLOGGER_MAIL: ${{ secrets.BLOGGER_MAIL }}
-        run: python haberci.py
+        # BURASI KRİTİK: Dosya adın haberci.py olduğu için böyle olmalı
+        run: python haberci.py 
 
       - name: Hafizayi Guncelle
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git add haber_hafiza.txt
-          git commit -m "Hafiza guncellendi" || exit 0
+          git commit -m "Hafiza guncellendi [skip ci]" || exit 0
           git push
