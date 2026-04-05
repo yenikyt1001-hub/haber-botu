@@ -1,20 +1,38 @@
-name: Haber Botu Calistir
+name: Haber Botu Otomatik Calistir
+
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    - cron: '0 * * * *' # Her saat bası calısır
+  workflow_dispatch: # El ile baslatmak icin
+
 jobs:
-  haber_paylas:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout kod
+        uses: actions/checkout@v4
+
       - name: Python Kur
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - name: Eski Kalintilari Sil ve Yukle
+          python-version: '3.10'
+
+      - name: Bagimliliklari Yukle
         run: |
-          pip uninstall google-generativeai -y
-          pip install -r requirements.txt
+          pip install feedparser google-genai requests
+
       - name: Botu Calistir
-        run: python haberci.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GMAIL_ADRESIN: ${{ secrets.GMAIL_ADRESIN }}
+          GMAIL_UYGULAMA_SIFRESI: ${{ secrets.GMAIL_UYGULAMA_SIFRESI }}
+          BLOGGER_MAIL: ${{ secrets.BLOGGER_MAIL }}
+        run: python haber_botu.py
+
+      - name: Hafizayi Guncelle
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add haber_hafiza.txt
+          git commit -m "Hafiza guncellendi" || exit 0
+          git push
