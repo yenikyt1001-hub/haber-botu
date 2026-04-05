@@ -28,8 +28,8 @@ jobs:
           GMAIL_UYGULAMA_SIFRESI: ${{ secrets.GMAIL_UYGULAMA_SIFRESI }}
           BLOGGER_MAIL: ${{ secrets.BLOGGER_MAIL }}
         run: python haber_botu.py
-
-      - name: Hafizayi Guncelle
+        
+        - name: Hafizayi Guncelle
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
