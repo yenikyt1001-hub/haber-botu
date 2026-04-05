@@ -1,18 +1,22 @@
 import feedparser
-import google.genai as genai
-from google.genai import types
 import smtplib
 import os
 import time
+import requests
+import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
+from google import genai
 
 # --- AYARLAR ---
-GEMINI_API_KEY = "AIzaSyDAU6jVnIRBxfqrDkF9oX22xD2Ebq6Rf4U" # Kodun burada kalsın
+GEMINI_API_KEY = "AIzaSyDAU6jVnIRBxfqrDkF9oX22xD2Ebq6Rf4U"
 GMAIL_ADRESIN = "yenikyt1001@gmail.com"
 GMAIL_UYGULAMA_SIFRESI = "ttbe ahll meze euch"
 BLOGGER_MAIL = "yenikyt1001.seslisonhaber@blogger.com"
+
+# Senin istediğin özel sabit etiketler
+OZEL_ETIKETLER = "#duhirosondakika #duhirogüncel #seslihaber #seslisondakika #sondakika"
 
 RSS_URLS = [
     "https://www.ntv.com.tr/son-dakika.rss",
@@ -21,7 +25,6 @@ RSS_URLS = [
 ]
 
 def baslat():
-    # Buradaki http_options hatayı kökten çözer
     client = genai.Client(
         api_key=GEMINI_API_KEY,
         http_options={'api_version': 'v1'}
@@ -40,41 +43,83 @@ def baslat():
             if haber.link not in yayinlananlar:
                 print(f"İşlemde: {haber.title}")
                 
-                # 1. Metin Özgünleştirme
+                # 1. Orijinal Resmi Bulma ve İndirme
+                resim_url = ""
+                if 'media_content' in haber:
+                    resim_url = haber.media_content[0]['url']
+                elif 'links' in haber:
+                    for link in haber.links:
+                        if 'image' in link.get('type', ''):
+                            resim_url = link.href
+                
+                # Eğer hala resim yoksa description içinde ara
+                if not resim_url and 'description' in haber:
+                    img_match = re.search(r'<img src="([^"]+)"', haber.description)
+                    if img_match: resim_url = img_match.group(1)
+
+                resim_data = None
+                if resim_url:
+                    try:
+                        print(f"Resim indiriliyor: {resim_url}")
+                        r = requests.get(resim_url, timeout=10)
+                        if r.status_code == 200:
+                            resim_data = r.content
+                    except Exception as e:
+                        print(f"Resim indirme hatası: {e}")
+
+                # 2. Gemini ile Metin ve Dinamik Etiket Oluşturma
                 try:
+                    prompt = (f"Haber Başlığı: {haber.title}\nÖzet: {haber.summary}\n\n"
+                             "GÖREV:\n1. Bu haberi spiker diliyle profesyonelce yeniden yaz.\n"
+                             "2. Bu haberle ilgili en az 10 adet popüler etiketi aralarında boşluk bırakarak başına # koyarak yaz.")
+                    
                     res_metin = client.models.generate_content(
                         model="gemini-1.5-flash", 
-                        contents=f"Haber: {haber.title}\n{haber.summary}\n\nBu haberi profesyonelce yeniden yaz."
+                        contents=prompt
                     )
-                    icerik = res_metin.text
+                    
+                    tam_metin = res_metin.text
+                    satirlar = tam_metin.strip().split('\n')
+                    
+                    dinamik_etiketler = ""
+                    for satir in reversed(satirlar):
+                        if "#" in satir:
+                            dinamik_etiketler = satir
+                            break
+                    
+                    # Gemini etiket üretemezse yedekler
+                    if not dinamik_etiketler:
+                        dinamik_etiketler = "#haber #guncel #turkiye #medya"
+                    
+                    # TÜM ETIKETLERİ BİRLEŞTİR (Senin istediklerin + Gemini'nin buldukları)
+                    toplam_etiketler = f"{OZEL_ETIKETLER} {dinamik_etiketler}"
+                    temiz_icerik = tam_metin.replace(dinamik_etiketler, "").strip()
+                    
                 except Exception as e:
                     print(f"Metin hatası: {e}")
-                    icerik = f"{haber.title}\n\n{haber.summary}"
-
-                # 2. Resim Oluşturma
-                resim_data = None
-                try:
-                    print("Resim oluşturuluyor...")
-                    res_img = client.models.generate_image(
-                        model="imagen-3",
-                        prompt=f"Cinematic realistic news photo: {haber.title}",
-                        config=types.GenerateImageConfig(
-                            aspect_ratio="16:9",
-                            safety_filter_level="BLOCK_ONLY_HIGH"
-                        )
-                    )
-                    if res_img.generated_images:
-                        resim_data = res_img.generated_images[0].image_bytes
-                except Exception as e:
-                    print(f"Resim oluşturulamadı: {e}")
+                    temiz_icerik = f"{haber.title}\n\n{haber.summary}"
+                    toplam_etiketler = OZEL_ETIKETLER
 
                 # 3. Mail Gönderimi
                 try:
                     msg = MIMEMultipart()
                     msg['From'] = GMAIL_ADRESIN
                     msg['To'] = BLOGGER_MAIL
-                    msg['Subject'] = haber.title
-                    msg.attach(MIMEText(icerik, 'plain'))
+                    # Konu satırına tüm etiketleri ekliyoruz (Blogger buradan yakalar)
+                    msg['Subject'] = f"{haber.title} {toplam_etiketler}"
+                    
+                    html_icerik = f"""
+                    <html>
+                    <body>
+                        <p>{temiz_icerik.replace('\n', '<br>')}</p>
+                        <br>
+                        <p><strong>Kaynak:</strong> <a href="{haber.link}">{haber.link}</a></p>
+                        <br>
+                        <p style="color:gray; font-size:12px;">{toplam_etiketler}</p>
+                    </body>
+                    </html>
+                    """
+                    msg.attach(MIMEText(html_icerik, 'html'))
                     
                     if resim_data:
                         image = MIMEImage(resim_data, name="haber.jpg")
@@ -86,7 +131,8 @@ def baslat():
                     
                     with open(log_dosyasi, "a") as f:
                         f.write(haber.link + "\n")
-                    print("Başarıyla Blogger'a gönderildi!")
+                    print(f"BAŞARIYLA GÖNDERİLDİ: {haber.title}")
+                    
                 except Exception as e:
                     print(f"Mail hatası: {e}")
                 
