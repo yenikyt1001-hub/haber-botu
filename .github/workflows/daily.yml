@@ -2,8 +2,8 @@ name: Haber Botu Otomatik Calistir
 
 on:
   schedule:
-    - cron: '0 * * * *' # Her saat başı çalışır
-  workflow_dispatch: # El ile başlatma butonu
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -29,8 +29,7 @@ jobs:
           GMAIL_ADRESIN: ${{ secrets.GMAIL_ADRESIN }}
           GMAIL_UYGULAMA_SIFRESI: ${{ secrets.GMAIL_UYGULAMA_SIFRESI }}
           BLOGGER_MAIL: ${{ secrets.BLOGGER_MAIL }}
-        # BURASI KRİTİK: Dosya adın haberci.py olduğu için böyle olmalı
-        run: python haberci.py 
+        run: python haberci.py
 
       - name: Hafizayi Guncelle
         run: |
