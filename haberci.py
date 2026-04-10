@@ -30,8 +30,6 @@ def baslat():
         besleme = feedparser.parse(url)
         for haber in besleme.entries[:2]:
             if haber.link not in yayinlananlar:
-                print(f"Haber Hazırlanıyor: {haber.title}")
-                
                 # --- Resim Çek ---
                 resim_url = ""
                 if 'media_content' in haber: resim_url = haber.media_content[0]['url']
@@ -46,60 +44,77 @@ def baslat():
                         if r.status_code == 200: resim_data = r.content
                     except: pass
 
-                # --- Gemini Metin ve Etiketleme ---
+                # --- Gemini Metin ve Detaylı Etiketleme ---
                 try:
                     prompt = (f"Haber: {haber.title}\n{haber.summary}\n\n"
-                              "GÖREV: Spiker diliyle akıcı yaz. En az 10 adet #etiket ekle.")
+                              "GÖREV: Spiker diliyle, heyecanlı ve detaylı bir haber metni yaz. "
+                              "Metnin en sonuna, haberle ilgili en az 10 adet popüler etiketi aralarında boşluk bırakarak ekle.")
                     res = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
                     tam_metin = res.text.strip()
                     
-                    # Etiketleri ve metni ayır
+                    # Etiketleri ve metni birbirinden ayırıyoruz
                     satirlar = tam_metin.split('\n')
                     dinamik_etiketler = ""
-                    temiz_metin_satirlari = []
+                    temiz_metin_listesi = []
+                    
                     for s in satirlar:
-                        if "#" in s: dinamik_etiketler += " " + s
-                        else: temiz_metin_satirlari.append(s)
+                        if "#" in s:
+                            dinamik_etiketler += " " + s
+                        else:
+                            temiz_metin_listesi.append(s)
                     
-                    if not dinamik_etiketler.strip(): dinamik_etiketler = "#haber #sondakika"
-                    
-                    # Etiketleri birleştir ve düzenle
+                    # Eğer Gemini etiket üretmezse boş kalmasın
+                    if not dinamik_etiketler.strip():
+                        dinamik_etiketler = "#haber #sondakika #guncel #turkiye"
+
+                    # Senin özel etiketlerinle birleştir ve temizle
                     toplam_etiketler = f"{OZEL_ETIKETLER} {dinamik_etiketler.strip()}"
-                    toplam_etiketler = " ".join(dict.fromkeys(toplam_etiketler.split())) # Tekrarları sil
+                    toplam_etiketler = " ".join(dict.fromkeys(toplam_etiketler.split()))
                     
-                    html_metin = "\n".join(temiz_metin_satirlari).replace('\n', '<br>')
+                    # HTML için satır sonlarını düzenle (f-string hatası almamak için dışarıda)
+                    html_icerik = "<br>".join(temiz_metin_listesi)
                 except: continue
 
-                # --- Mail Gönderimi ---
+                # --- Mail Gönderimi (Zengin Tasarım) ---
                 msg = MIMEMultipart()
                 msg['From'] = GMAIL_ADRESIN
                 msg['To'] = BLOGGER_MAIL
+                # Başlığa etiketleri ekliyoruz (Blogger bunları etiket olarak algılar)
                 msg['Subject'] = f"{haber.title} {toplam_etiketler}"
                 
-                # HTML Tasarımı (Kaynak Linki Burada)
                 body = f"""
                 <html>
-                <body style="font-family: Arial, sans-serif;">
-                    <div>{html_metin}</div>
-                    <br><hr><br>
-                    <strong>Kaynak:</strong> <a href="{haber.link}">{haber.link}</a>
+                <body style="font-family: 'Trebuchet MS', sans-serif; color: #333;">
+                    <div style="font-size: 16px; line-height: 1.6;">
+                        {html_icerik}
+                    </div>
                     <br><br>
-                    <div style="color: #666; font-size: 13px;">{toplam_etiketler}</div>
+                    <div style="background: #f9f9f9; padding: 15px; border-left: 5px solid #0056b3;">
+                        <strong>📌 Haber Kaynağı:</strong> <a href="{haber.link}" style="color: #0056b3; text-decoration: none;">{haber.link}</a>
+                    </div>
+                    <br>
+                    <div style="color: #777; font-size: 14px; border-top: 1px solid #eee; padding-top: 10px;">
+                        <strong>Etiketler:</strong><br>
+                        {toplam_etiketler}
+                    </div>
                 </body>
                 </html>
                 """
                 
                 msg.attach(MIMEText(body, 'html'))
-                if resim_data: msg.attach(MIMEImage(resim_data, name="haber.jpg"))
+                if resim_data:
+                    msg.attach(MIMEImage(resim_data, name="haber.jpg"))
                 
                 try:
                     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
                         s.login(GMAIL_ADRESIN, GMAIL_UYGULAMA_SIFRESI)
                         s.sendmail(GMAIL_ADRESIN, BLOGGER_MAIL, msg.as_string())
                     
-                    with open(LOG_DOSYASI, "a", encoding="utf-8") as f: f.write(haber.link + "\n")
+                    with open(LOG_DOSYASI, "a", encoding="utf-8") as f:
+                        f.write(haber.link + "\n")
                     print(f"Yayınlandı: {haber.title}")
-                except Exception as e: print(f"Hata: {e}")
+                except Exception as e:
+                    print(f"Hata oluştu: {e}")
                 
                 time.sleep(5)
 
