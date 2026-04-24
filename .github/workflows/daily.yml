@@ -2,7 +2,8 @@ name: Haber Botu Otomatik Calistir
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    # Her 30 dakikada bir çalışır
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -14,6 +15,9 @@ jobs:
     steps:
       - name: Kodlari Cek
         uses: actions/checkout@v4
+        with:
+          # Hafıza güncellemesi için en güncel hali çekmesini garantileyelim
+          fetch-depth: 0
 
       - name: Python Kur
         uses: actions/setup-python@v5
@@ -33,8 +37,8 @@ jobs:
 
       - name: Hafizayi Guncelle
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add haber_hafiza.txt
-          git commit -m "Hafiza guncellendi [skip ci]" || exit 0
-          git push
+          # Sadece değişiklik varsa commit at, yoksa hata vermeden çık
+          git diff-index --quiet HEAD || (git commit -m "Hafiza guncellendi [skip ci]" && git push)
