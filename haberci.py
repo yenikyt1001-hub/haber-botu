@@ -1,7 +1,6 @@
 import feedparser, smtplib, os, time, requests, re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.image import MIMEImage
 from google import genai
 
 # Secrets
@@ -10,87 +9,99 @@ GMAIL_ADRESIN = os.getenv("GMAIL_ADRESIN")
 GMAIL_UYGULAMA_SIFRESI = os.getenv("GMAIL_UYGULAMA_SIFRESI")
 BLOGGER_MAIL = os.getenv("BLOGGER_MAIL")
 
-# Senin sabit etiketlerin (Görseldeki gibi düz metin)
+# Ayarlar
 OZEL_ETIKETLER = "Sesli Son Dakika, Haber, Güncel, Türkiye"
 LOG_DOSYASI = "haber_hafiza.txt"
 
-RSS_URLS = ["https://www.ntv.com.tr/son-dakika.rss", "https://www.trthaber.com/sondakika.rss", "https://www.sondakika.com/rss/son-dakika/"]
+# Güncellenmiş RSS Listesi
+RSS_URLS = [
+    "https://www.trthaber.com/manset_rss.xml",
+    "https://www.cumhuriyet.com.tr/rss",
+    "http://www.hurriyet.com.tr/rss/gundem",
+    "https://www.sozcu.com.tr/feeds-rss-category-sozcu",
+    "https://www.sabah.com.tr/rss/anasayfa.xml",
+    "https://www.milliyet.com.tr/rss/rssnew/manset.xml",
+    "http://feeds.feedburner.com/ensonhaber",
+    "https://www.haberler.com/rss/manset.xml",
+    "https://www.aa.com.tr/tr/rss/default?cat=guncel",
+    "https://www.ntv.com.tr/gundem.rss"
+]
+
+HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
 def baslat():
-    if not GEMINI_API_KEY: return
+    if not all([GEMINI_API_KEY, GMAIL_ADRESIN, GMAIL_UYGULAMA_SIFRESI, BLOGGER_MAIL]):
+        print("Hata: Gerekli çevre değişkenleri bulunamadı.")
+        return
+
     client = genai.Client(api_key=GEMINI_API_KEY, http_options={'api_version': 'v1'})
     
     if not os.path.exists(LOG_DOSYASI):
-        with open(LOG_DOSYASI, "w", encoding="utf-8") as f: f.write("")
+        open(LOG_DOSYASI, "w", encoding="utf-8").close()
     
     with open(LOG_DOSYASI, "r", encoding="utf-8") as f:
-        yayinlananlar = f.read().splitlines()
+        yayinlananlar = set(f.read().splitlines())
 
     for url in RSS_URLS:
-        besleme = feedparser.parse(url)
-        for haber in besleme.entries[:2]:
-            if haber.link not in yayinlananlar:
-                # --- Resim Ayarları ---
-                resim_url = ""
-                if 'media_content' in haber: resim_url = haber.media_content[0]['url']
-                elif 'description' in haber:
-                    img_match = re.search(r'<img src="([^"]+)"', haber.description)
-                    if img_match: resim_url = img_match.group(1)
+        try:
+            print(f"Okunuyor: {url}")
+            # Bazı RSS'ler User-Agent gerektirdiği için requests ile çekiyoruz
+            resp = requests.get(url, headers=HEADERS, timeout=10)
+            besleme = feedparser.parse(resp.content)
+            
+            for haber in besleme.entries[:2]: # Her kaynaktan en yeni 2 haberi al
+                link = haber.link
+                if link not in yayinlananlar:
+                    # --- Resim Yakalama ---
+                    resim_url = ""
+                    if 'media_content' in haber: resim_url = haber.media_content[0]['url']
+                    elif 'description' in haber:
+                        img_match = re.search(r'<img [^>]*src="([^"]+)"', haber.description)
+                        if img_match: resim_url = img_match.group(1)
 
-                resim_data = None
-                if resim_url:
-                    try:
-                        r = requests.get(resim_url, timeout=10)
-                        if r.status_code == 200: resim_data = r.content
-                    except: pass
-
-                # --- Gemini: Sadece Haber Metni Üret ---
-                try:
-                    prompt = (f"Haber: {haber.title}\n{haber.summary}\n\n"
-                              "GÖREV: Bu haberi spiker diliyle profesyonelce yaz. "
-                              "SADECE haber metnini ver. Metin sonunda asla hashtag (#) veya etiket kullanma.")
-                    res = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
-                    temiz_icerik = res.text.strip().replace('\n', '<br>')
+                    # --- Gemini İçerik ---
+                    prompt = (f"Haber: {haber.title}\nÖzet: {haber.summary if 'summary' in haber else haber.title}\n\n"
+                              "GÖREV: Bu haberi spiker tonunda, profesyonel bir blog yazısı olarak yaz. "
+                              "Sadece metni ver, etiket veya hashtag kullanma.")
                     
-                    # Gemini'nin ekleyebileceği hashtagleri temizle (Garanti olsun)
-                    temiz_icerik = re.sub(r'#\w+', '', temiz_icerik) 
-                except: continue
+                    try:
+                        res = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
+                        temiz_icerik = res.text.strip().replace('\n', '<br>')
+                    except: continue
 
-                # --- Kaynak ve Etiket Tasarımı (Birebir Eski Stil) ---
-                kaynak_adi = haber.link.split('/')[2].replace('www.', '').split('.')[0].capitalize()
-                
-                # Blogger etiket kutusu için başlığa görünmez hashtag ekleyelim (Opsiyonel)
-                konu_basligi = f"{haber.title}"
+                    # --- Blogger Formatı ---
+                    kaynak_adi = url.split('.')[1].upper()
+                    mail_konusu = f"{haber.title} [{OZEL_ETIKETLER}, {kaynak_adi}]"
 
-                body = f"""
-                <html>
-                <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #333;">
-                    <div>{temiz_icerik}</div>
-                    <br>
-                    <a href="{haber.link}" style="color: #0056b3; font-weight: bold; text-decoration: none;">Haberin devamı için tıklayın...</a>
-                    <br><br>
-                    <hr style="border: 0; border-top: 1px solid #ccc;">
-                    <div style="font-size: 13px; color: #555;">
-                        <span style="color: #777; font-weight: bold;">Kaynak:</span> 
-                        <a href="{haber.link}" style="color: #0056b3; text-decoration: none;">{kaynak_adi}</a> | 
-                        <span style="color: #777; font-weight: bold;">Etiketler:</span> {OZEL_ETIKETLER}, {haber.title[:20]}
-                    </div>
-                </body>
-                </html>
-                """
-                
-                msg = MIMEMultipart()
-                msg['Subject'] = konu_basligi
-                msg.attach(MIMEText(body, 'html'))
-                if resim_data: msg.attach(MIMEImage(resim_data, name="haber.jpg"))
-                
-                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
-                    s.login(GMAIL_ADRESIN, GMAIL_UYGULAMA_SIFRESI)
-                    s.sendmail(GMAIL_ADRESIN, BLOGGER_MAIL, msg.as_string())
-                
-                with open(LOG_DOSYASI, "a", encoding="utf-8") as f: f.write(haber.link + "\n")
-                print(f"Yayınlandı: {haber.title}")
-                time.sleep(5)
+                    body = f"""
+                    <html>
+                    <body style="font-family: Arial, sans-serif;">
+                        {f'<img src="{resim_url}" style="width:100%; border-radius:10px;"><br>' if resim_url else ''}
+                        <div style="font-size: 16px; margin-top: 15px;">{temiz_icerik}</div>
+                        <br><hr>
+                        <p style="font-size: 12px;">Kaynak: <a href="{link}">{kaynak_adi}</a></p>
+                    </body>
+                    </html>
+                    """
+
+                    # --- Mail Gönderimi ---
+                    msg = MIMEMultipart()
+                    msg['Subject'] = mail_konusu
+                    msg.attach(MIMEText(body, 'html'))
+                    
+                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
+                        s.login(GMAIL_ADRESIN, GMAIL_UYGULAMA_SIFRESI)
+                        s.sendmail(GMAIL_ADRESIN, BLOGGER_MAIL, msg.as_string())
+                    
+                    with open(LOG_DOSYASI, "a", encoding="utf-8") as f:
+                        f.write(link + "\n")
+                    
+                    print(f"Yayınlandı: {haber.title}")
+                    time.sleep(8) # Blogger koruması için bekleme
+
+        except Exception as e:
+            print(f"URL hatası ({url}): {e}")
+            continue
 
 if __name__ == "__main__":
     baslat()
