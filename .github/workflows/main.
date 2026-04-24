@@ -1,0 +1,27 @@
+name: Haber Botu Calistir
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Her saat başı çalışır
+  workflow_dispatch: # İstediğinde elle çalıştırmanı sağlar
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Depoyu kopyala
+        uses: actions/checkout@v3
+
+      - name: Python Kur
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Kütüphaneleri Yukle
+        run: pip install -r requirements.txt
+
+      - name: Botu Calistir
+        env:
+          BLOG_ID: ${{ secrets.BLOG_ID }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: python bot.py
